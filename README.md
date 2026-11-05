@@ -1,5 +1,7 @@
 # MSP Ticket Triage Agent
 
+[![CI](https://github.com/kmin344/msp-ticket-triage-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/kmin344/msp-ticket-triage-agent/actions/workflows/ci.yml)
+
 Fastify webhook → HMAC check → idempotency claim → Claude tool-use loop → Postgres, with every tool call audited.
 
 ## Run
@@ -29,6 +31,7 @@ Responses:
 |------|------|------|
 | `200` | New ticket, triaged | `{ticket_id, replayed: false, status: "completed", result, toolCalls}` |
 | `200` | New ticket, handed to a human | `{ticket_id, replayed: false, status: "escalated", escalation_code, toolCalls}` |
+| `200` | New ticket, triaged, but the model set `needs_human: true` | `{ticket_id, replayed: false, status: "completed", result, toolCalls}`; the ticket is stored with `escalation_code: "model_flagged"` |
 | `200` | Replay of a finished request | `{ticket_id, replayed: true, ticket: {status, priority, category, summary, needs_human, escalation_code}}`, header `idempotent-replayed: true` |
 | `400` | Bad payload or missing `x-idempotency-key` | |
 | `401` | Bad signature | |
@@ -89,3 +92,7 @@ npm run typecheck
 ## How this was built
 
 I wrote the spec (stack, failure handling, test cases) and built the code with Claude in one conversation, iterating over four rounds: initial build → I ran it against a real Postgres 16 and reported three bugs (replay returned a bare 409, DB errors leaked host/port, key claim and ticket insert were not atomic) → fixes verified locally (20 concurrent same-key requests produce exactly one ticket) → a fourth bug (raw LLM error text leaking through `escalation_reason`) fixed with stable escalation codes. Final state: `tsc` clean, 14/14 vitest tests, Postgres scenarios re-run locally.
+
+## License
+
+[GPL-3.0](LICENSE)
