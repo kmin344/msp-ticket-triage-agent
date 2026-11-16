@@ -34,6 +34,10 @@ class InMemoryRepo implements Repo {
     if (this.down) throw new RepoError(op, new Error('connect ECONNREFUSED 127.0.0.1:5999'));
   }
 
+  async ping(): Promise<void> {
+    this.check('ping');
+  }
+
   async beginIntake(key: string, requestHash: string, i: Intake): Promise<IntakeClaim> {
     this.check('beginIntake');
     const existing = this.keys.get(key);
@@ -331,5 +335,23 @@ describe('escalation detail never reaches the caller', () => {
     const check = /escalation_code\s+text CHECK \(escalation_code IN \(([^)]*)\)\)/.exec(sql)?.[1] ?? '';
     const inSql = [...check.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
     expect(inSql.sort()).toEqual([...ESCALATION_CODES].sort());
+  });
+});
+
+describe('GET /ready', () => {
+  it('returns 200 when the database answers', async () => {
+    const { app } = setup(fakeModel(happyTurns()));
+    const res = await app.inject({ method: 'GET', url: '/ready' });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('returns 503 with a generic body when the database is down, while /health stays 200', async () => {
+    const { app, repo } = setup(fakeModel(happyTurns()));
+    repo.down = true;
+    const ready = await app.inject({ method: 'GET', url: '/ready' });
+    expect(ready.statusCode).toBe(503);
+    expect(ready.body).not.toContain('ECONNREFUSED');
+    const health = await app.inject({ method: 'GET', url: '/health' });
+    expect(health.statusCode).toBe(200);
   });
 });

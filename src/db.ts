@@ -85,6 +85,8 @@ export interface Repo {
   updateTicketTriage(ticketId: number, fields: TriageFields): Promise<void>;
   markNeedsHuman(ticketId: number, code: EscalationCode): Promise<void>;
   logAudit(entry: AuditEntry): Promise<void>;
+  /** Cheap round trip that proves the database is reachable (used by /ready). */
+  ping(): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -207,6 +209,12 @@ export class PgRepo implements Repo {
          VALUES ($1, $2, $3::jsonb, $4::jsonb, $5)`,
         [e.ticket_id, e.tool, JSON.stringify(e.input ?? null), JSON.stringify(e.output ?? null), e.latency_ms],
       );
+    });
+  }
+
+  ping(): Promise<void> {
+    return this.run('ping', async () => {
+      await this.pool.query('SELECT 1');
     });
   }
 

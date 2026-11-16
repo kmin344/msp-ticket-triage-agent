@@ -9,12 +9,27 @@ services:
       - "5432:5432"
     volumes:
       - ./db/schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+      - ./db/seed-demo.sql:/docker-entrypoint-initdb.d/002_seed_demo.sql:ro  # demo customers: local only
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U triage -d triage"]
       interval: 2s
       timeout: 3s
       retries: 20
+
+  # Full stack in containers: docker compose --profile app up --build
+  app:
+    profiles: ["app"]
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://triage:triage@db:5432/triage
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:?set WEBHOOK_SECRET}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY}
+    ports:
+      - "3000:3000"
 
 volumes:
   pgdata:

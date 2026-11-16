@@ -45,7 +45,12 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     return reply.code(500).send({ error: 'internal server error' });
   });
 
+  // Liveness: the process is up. Readiness: the database also answers. Load balancers should use /ready.
   app.get('/health', async () => ({ ok: true }));
+  app.get('/ready', async () => {
+    await deps.repo.ping(); // a RepoError becomes 503 in the error handler
+    return { ok: true };
+  });
 
   app.post('/webhooks/ticket', async (req, reply) => {
     const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
