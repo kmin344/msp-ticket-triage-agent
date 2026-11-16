@@ -13,6 +13,22 @@ npm run db:up                 # Postgres 16; db/schema.sql runs on first start
 npm run dev
 ```
 
+## Deploy
+
+```bash
+docker build -t msp-triage-agent .
+docker run -p 3000:3000 \
+  -e DATABASE_URL=... -e WEBHOOK_SECRET=... -e ANTHROPIC_API_KEY=... msp-triage-agent
+```
+
+Or run the full stack locally: `docker compose --profile app up --build` (needs `WEBHOOK_SECRET` and `ANTHROPIC_API_KEY` in the shell).
+
+- Apply `db/schema.sql` to the production database once. It creates tables only.
+- `db/seed-demo.sql` holds two demo customers. Docker Compose loads it for local use. Do not load it in production. Add your real customers to the `customers` table.
+- `GET /health` is liveness (process is up). `GET /ready` is readiness (it also queries the database; `503` if the database is down). Point load balancers at `/ready`.
+- The image runs as a non-root user and reads all settings from environment variables.
+- Not included: rate limiting, secret rotation, and a connector to an external ticket system. Triage results are stored in Postgres only.
+
 ## Send a ticket
 
 ```bash
